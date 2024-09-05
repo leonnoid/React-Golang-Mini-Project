@@ -32,6 +32,9 @@ type Claims struct {
 	Username string
 	jwt.StandardClaims
 }
+type cEmail struct {
+	Email string
+}
 
 var db *sql.DB
 
@@ -228,6 +231,29 @@ func addData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(data)
 }
+func checkEmail(w http.ResponseWriter, r *http.Request) {
+	var email cEmail
+	err := json.NewDecoder(r.Body).Decode(&email)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	var exists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM data WHERE email = $1)", email.Email).Scan(&exists)
+	if err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return
+	}
+
+	response := struct {
+		IsUnique bool `json:"isUnique"`
+	}{
+		IsUnique: !exists,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
 
 func main() {
 	initDB()
@@ -239,6 +265,7 @@ func main() {
 	mux.HandleFunc("/api/home", home)
 	mux.HandleFunc("/api/logout", logout)
 	mux.HandleFunc("/api/add", addData)
+	mux.HandleFunc("/api/check-email", checkEmail)
 
 	corsMux := enableCors(mux)
 

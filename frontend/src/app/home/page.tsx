@@ -30,6 +30,8 @@ const HomePage = () => {
     const [rows, setRows] = useState<Data[]>([]);
     const [formData, setFormData] = useState<Data>(defaultValues);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
+    const hasErrors = Object.keys(errors).length > 0;
 
     useEffect(() => {
         const fetchData = async () => {
@@ -102,11 +104,12 @@ const HomePage = () => {
     };
 
     const handleOpenModal = () => {
-        setFormData(defaultValues);  // Reset form data
         setIsModalOpen(true);
     };
 
     const handleCloseModal = () => {
+        setErrors({});
+        setFormData(defaultValues); 
         setIsModalOpen(false);
     };
 
@@ -117,7 +120,58 @@ const HomePage = () => {
         });
     };
 
+    const validateForm = async (): Promise<boolean> => {
+        const newErrors: { [key: string]: string } = {};
+
+        // Check for empty fields
+        if (!formData.firstname) newErrors.firstname = "First name is required";
+        if (!formData.lastname) newErrors.lastname = "Last name is required";
+        if (!formData.position) newErrors.position = "Position is required";
+        if (!formData.phone) newErrors.phone = "Phone number is required";
+        if (!formData.email) newErrors.email = "Email is required";
+
+        // Validate phone number (only digits and max 10 characters)
+        if (!/^\d{1,10}$/.test(formData.phone)) {
+            newErrors.phone = "Phone number must be numeric and up to 10 digits";
+        }
+
+        // Validate email (must end with .id or .com)
+        if (!/\.(com|id)$/.test(formData.email)) {
+            newErrors.email = "Email must end with .com or .id";
+        }
+
+        if (!newErrors.email) {
+            try {
+                const response = await fetch('http://localhost:8080/api/check-email', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                    body: JSON.stringify({ email: formData.email }),
+                });
+    
+                if (response.ok) {
+                    const data = await response.json();
+                    if (!data.isUnique) {
+                        newErrors.email = "Email must be unique";
+                    }
+                } else {
+                    console.error("Failed to check email uniqueness", response.statusText);
+                }
+            } catch (error) {
+                console.error('Error checking email uniqueness:', error);
+            }
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0; // Form is valid if there are no errors
+    };
+
     const handleSave = async () => {
+        const isValid = await validateForm();
+        if (!isValid) return; 
+
         try {
             const response = await fetch('http://localhost:8080/api/add', {
                 method: 'POST',
@@ -227,7 +281,7 @@ const HomePage = () => {
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    width: 400,
+                    width: 500,
                     bgcolor: 'background.paper',
                     boxShadow: 24,
                     p: 4,
@@ -235,46 +289,135 @@ const HomePage = () => {
                     <Typography id="add-new-data-modal" variant="h6" component="h2">
                         Add New Data
                     </Typography>
-                    <TextField
-                        fullWidth
-                        margin="normal"
-                        label="First Name"
-                        value={formData.firstname}
-                        onChange={(e) => handleInputChange(e, 'firstname')}
-                    />
-                    <TextField
-                        fullWidth
-                        margin="normal"
-                        label="Last Name"
-                        value={formData.lastname}
-                        onChange={(e) => handleInputChange(e, 'lastname')}
-                    />
-                    <TextField
-                        fullWidth
-                        margin="normal"
-                        label="Position"
-                        value={formData.position}
-                        onChange={(e) => handleInputChange(e, 'position')}
-                    />
-                    <TextField
-                        fullWidth
-                        margin="normal"
-                        label="Phone Number"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange(e, 'phone')}
-                    />
-                    <TextField
-                        fullWidth
-                        margin="normal"
-                        label="Email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange(e, 'email')}
-                    />
+                    <Box sx={{ position: 'relative', width: '100%' }}>
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="First Name"
+                            value={formData.firstname}
+                            onChange={(e) => handleInputChange(e, 'firstname')}
+                        />
+                        {errors.firstname && (
+                            <Button 
+                                variant="contained" 
+                                sx={{ 
+                                    backgroundColor: '#d32f2f', 
+                                    color: '#fff', 
+                                    position: 'absolute',
+                                    bottom: -30,
+                                    left: 0,
+                                    width: '100%',
+                                }}
+                            >
+                                {errors.firstname}
+                            </Button>
+                        )}
+                    </Box>
+                    <Box sx={{ position: 'relative', width: '100%' }}>
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="Last Name"
+                            value={formData.lastname}
+                            onChange={(e) => handleInputChange(e, 'lastname')}
+                            sx={{ marginTop: hasErrors ? '40px' : '16px' }}
+                        />
+                        {errors.lastname && (
+                            <Button 
+                                variant="contained" 
+                                sx={{ 
+                                    backgroundColor: '#d32f2f', 
+                                    color: '#fff', 
+                                    position: 'absolute',
+                                    bottom: -30,
+                                    left: 0,
+                                    width: '100%',
+                                }}
+                            >
+                                {errors.lastname}
+                            </Button>
+                        )}
+                    </Box>
+                    <Box sx={{ position: 'relative', width: '100%' }}>
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="Position"
+                            value={formData.position}
+                            onChange={(e) => handleInputChange(e, 'position')}
+                            sx={{ marginTop: hasErrors ? '40px' : '16px' }}
+                        />
+                        {errors.position && (
+                            <Button 
+                                variant="contained" 
+                                sx={{ 
+                                    backgroundColor: '#d32f2f', 
+                                    color: '#fff', 
+                                    position: 'absolute',
+                                    bottom: -30,
+                                    left: 0,
+                                    width: '100%',
+                                }}
+                            >
+                                {errors.position}
+                            </Button>
+                        )}
+                    </Box>
+                    <Box sx={{ position: 'relative', width: '100%' }}>
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="Phone Number"
+                            value={formData.phone}
+                            onChange={(e) => handleInputChange(e, 'phone')}
+                            sx={{ marginTop: hasErrors ? '40px' : '16px' }}
+                        />
+                        {errors.phone && (
+                            <Button 
+                                variant="contained" 
+                                sx={{ 
+                                    backgroundColor: '#d32f2f', 
+                                    color: '#fff', 
+                                    position: 'absolute',
+                                    bottom: -30,
+                                    left: 0,
+                                    width: '100%',
+                                }}
+                            >
+                                {errors.phone}
+                            </Button>
+                        )}
+                    </Box>
+                    <Box sx={{ position: 'relative', width: '100%' }}>
+                        <TextField
+                            fullWidth
+                            margin="normal"
+                            label="Email"
+                            value={formData.email}
+                            onChange={(e) => handleInputChange(e, 'email')}
+                            sx={{ marginTop: hasErrors ? '40px' : '16px' }}
+                        />
+                        {errors.email && (
+                            <Button 
+                                variant="contained" 
+                                sx={{ 
+                                    backgroundColor: '#d32f2f', 
+                                    color: '#fff', 
+                                    position: 'absolute',
+                                    bottom: -30,
+                                    left: 0,
+                                    width: '100%',
+                                }}
+                            >
+                                {errors.email}
+                            </Button>
+                        )}
+                    </Box>
                     <Button
                         variant="contained"
                         color="primary"
                         onClick={handleSave}
-                        sx={{ mt: 2 }}
+                        sx={{ mt: 5 }}
                     >
                         Save
                     </Button>
