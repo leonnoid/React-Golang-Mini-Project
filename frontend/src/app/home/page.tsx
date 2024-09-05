@@ -4,6 +4,7 @@ import { DeleteIcon, EditIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type Data = {
+    id: number | null;
     firstname: string;
     lastname: string;
     position: string;
@@ -12,6 +13,7 @@ type Data = {
 }
 
 const defaultValues: Data = {
+    id: null,
     firstname: '',
     lastname: '',
     position: '',
@@ -34,37 +36,29 @@ const HomePage = () => {
     const hasErrors = Object.keys(errors).length > 0;
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch('http://localhost:8080/api/home', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    },
-                });
-
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    const updatedRows = data.rows.map((row: any) => ({
-                        firstname: row.firstname || defaultValues.firstname,
-                        lastname: row.lastname || defaultValues.lastname,
-                        position: row.position || defaultValues.position,
-                        phone: row.phone || defaultValues.phone,
-                        email: row.email || defaultValues.email,
-                    }))
-                    setRows(updatedRows);        
-                } else {
-                    console.error("Failed to fetch data", response.statusText);
-                }
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            }
-        };
-
         fetchData();
     }, []);
-    
+
+    const fetchData = async () => {
+        try {
+            const response = await fetch('http://localhost:8080/api/home', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                setRows(data.rows);        
+            } else {
+                console.error("Failed to fetch data", response.statusText);
+            }
+        } catch (error) {
+            console.error('Error fetching data:', error);
+        }
+    };
     const StyledTableCell = styled(TableCell)(({ theme }) => ({
         [`&.${tableCellClasses.head}`]: {
           backgroundColor: theme.palette.common.black,
@@ -108,8 +102,8 @@ const HomePage = () => {
     };
 
     const handleCloseModal = () => {
-        setErrors({});
         setFormData(defaultValues); 
+        setErrors({});
         setIsModalOpen(false);
     };
 
@@ -119,24 +113,25 @@ const HomePage = () => {
             [field]: e.target.value,
         });
     };
+    const handleEdit = (row: Data) => {
+        setFormData(row);  
+        setIsModalOpen(true);
+    };
 
     const validateForm = async (): Promise<boolean> => {
         const newErrors: { [key: string]: string } = {};
 
-        // Check for empty fields
         if (!formData.firstname) newErrors.firstname = "First name is required";
         if (!formData.lastname) newErrors.lastname = "Last name is required";
         if (!formData.position) newErrors.position = "Position is required";
         if (!formData.phone) newErrors.phone = "Phone number is required";
         if (!formData.email) newErrors.email = "Email is required";
 
-        // Validate phone number (only digits and max 10 characters)
         if (!/^\d{1,10}$/.test(formData.phone)) {
             newErrors.phone = "Phone number must be numeric and up to 10 digits";
         }
 
-        // Validate email (must end with .id or .com)
-        if (!/\.(com|id)$/.test(formData.email)) {
+        if (!newErrors.email && !/\.(com|id)$/.test(formData.email)) {
             newErrors.email = "Email must end with .com or .id";
         }
 
@@ -148,7 +143,7 @@ const HomePage = () => {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
                     },
-                    body: JSON.stringify({ email: formData.email }),
+                    body: JSON.stringify({ email: formData.email, currentEmail: formData.id ? rows.find(row => row.id === formData.id)?.email : '' }),
                 });
     
                 if (response.ok) {
@@ -165,7 +160,7 @@ const HomePage = () => {
         }
 
         setErrors(newErrors);
-        return Object.keys(newErrors).length === 0; // Form is valid if there are no errors
+        return Object.keys(newErrors).length === 0; 
     };
 
     const handleSave = async () => {
@@ -173,8 +168,10 @@ const HomePage = () => {
         if (!isValid) return; 
 
         try {
-            const response = await fetch('http://localhost:8080/api/add', {
-                method: 'POST',
+            const url = formData.id === null ? 'http://localhost:8080/api/add' : `http://localhost:8080/api/edit/${formData.id}`;
+            const method  = formData.id === null ? 'POST' : 'PUT';
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -184,8 +181,14 @@ const HomePage = () => {
 
             if (response.ok) {
                 const savedRow = await response.json();
-                setRows([...rows, savedRow]);
+                console.log(savedRow)
+                if (method === 'POST') {
+                    setRows([...rows, savedRow]);
+                } else {
+                    setRows(rows.map(row => row.id === formData.id ? savedRow : row));
+                }
                 handleCloseModal();
+                fetchData();
             } else {
                 console.error("Failed to save data", response.statusText);
             }
@@ -193,7 +196,6 @@ const HomePage = () => {
             console.error('Error saving data:', error);
         }
     };
-
     return (
         <Box
             sx={{
@@ -243,7 +245,7 @@ const HomePage = () => {
                                             <StyledTableCell>{row.email}</StyledTableCell>
                                             <StyledTableCell>
                                                 <div className="flex justify-end p-2">
-                                                    <IconButton color="primary">
+                                                    <IconButton color="primary" onClick={() => handleEdit(row)}>
                                                         <EditIcon />
                                                     </IconButton>
                                                     <IconButton color="primary">

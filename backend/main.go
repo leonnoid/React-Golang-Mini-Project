@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -20,12 +21,12 @@ type Credentials struct {
 	Password string
 }
 
-type NewData struct {
-	Firstname string `json:"firstname"`
-	Lastname  string `json:"lastname"`
-	Position  string `json:"position"`
-	Phone     string `json:"phone"`
-	Email     string `json:"email"`
+type Data struct {
+	Firstname string
+	Lastname  string
+	Position  string
+	Phone     string
+	Email     string
 }
 
 type Claims struct {
@@ -33,7 +34,8 @@ type Claims struct {
 	jwt.StandardClaims
 }
 type cEmail struct {
-	Email string
+	Email        string
+	CurrentEmail string
 }
 
 var db *sql.DB
@@ -157,7 +159,6 @@ func home(w http.ResponseWriter, r *http.Request) {
 	// 		http.Error(w, "Invalid token", http.StatusUnauthorized)
 	// 		return
 	// 	}
-	// 	fmt.Print(err)
 	// 	http.Error(w, "Bad request", http.StatusBadRequest)
 	// 	return
 	// }
@@ -214,8 +215,9 @@ func home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
 func addData(w http.ResponseWriter, r *http.Request) {
-	var data NewData
+	var data Data
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
@@ -231,6 +233,7 @@ func addData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(data)
 }
+
 func checkEmail(w http.ResponseWriter, r *http.Request) {
 	var email cEmail
 	err := json.NewDecoder(r.Body).Decode(&email)
@@ -238,6 +241,17 @@ func checkEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
+	if email.Email == email.CurrentEmail {
+		response := struct {
+			IsUnique bool `json:"isUnique"`
+		}{
+			IsUnique: true,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		return
+	}
+
 	var exists bool
 	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM data WHERE email = $1)", email.Email).Scan(&exists)
 	if err != nil {
@@ -255,6 +269,29 @@ func checkEmail(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func editData(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Path[len("/api/edit/"):]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID format", http.StatusBadRequest)
+		return
+	}
+	var data Data
+	err = json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+	_, err = db.Exec("UPDATE data SET firstname = $1, lastname = $2, position = $3, phone = $4, email = $5 WHERE id = $6", data.Firstname, data.Lastname, data.Position, data.Phone, data.Email, id)
+	if err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(data)
+}
+
 func main() {
 	initDB()
 	defer db.Close()
@@ -266,6 +303,7 @@ func main() {
 	mux.HandleFunc("/api/logout", logout)
 	mux.HandleFunc("/api/add", addData)
 	mux.HandleFunc("/api/check-email", checkEmail)
+	mux.HandleFunc("/api/edit/", editData)
 
 	corsMux := enableCors(mux)
 
