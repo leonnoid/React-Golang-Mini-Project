@@ -181,7 +181,6 @@ const HomePage = () => {
 
             if (response.ok) {
                 const savedRow = await response.json();
-                console.log(savedRow)
                 if (method === 'POST') {
                     setRows([...rows, savedRow]);
                 } else {
@@ -191,6 +190,29 @@ const HomePage = () => {
                 fetchData();
             } else {
                 console.error("Failed to save data", response.statusText);
+            }
+        } catch (error) {
+            console.error('Error saving data:', error);
+        }
+    };
+
+    const handleDelete = async (row: Data) => {
+        if (!window.confirm('Are you sure you want to delete this record?')) return;
+            setFormData(row);
+        try {
+            const response = await fetch(`http://localhost:8080/api/delete/${row.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+                body: JSON.stringify(formData),
+            });
+
+            if (response.ok) {
+                fetchData();
+            } else {
+                console.error("Failed to delete data", response.statusText);
             }
         } catch (error) {
             console.error('Error saving data:', error);
@@ -248,7 +270,7 @@ const HomePage = () => {
                                                     <IconButton color="primary" onClick={() => handleEdit(row)}>
                                                         <EditIcon />
                                                     </IconButton>
-                                                    <IconButton color="primary">
+                                                    <IconButton color="primary" onClick={() => handleDelete(row)}>
                                                         <DeleteIcon />
                                                     </IconButton>
                                                 </div>

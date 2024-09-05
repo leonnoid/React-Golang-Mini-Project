@@ -292,6 +292,24 @@ func editData(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(data)
 }
 
+func deleteData(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Path[len("/api/delete/"):]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID format", http.StatusBadRequest)
+		return
+	}
+
+	_, err = db.Exec("DELETE FROM data WHERE id = $1", id)
+	if err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Record deleted successfully"})
+}
+
 func main() {
 	initDB()
 	defer db.Close()
@@ -304,6 +322,7 @@ func main() {
 	mux.HandleFunc("/api/add", addData)
 	mux.HandleFunc("/api/check-email", checkEmail)
 	mux.HandleFunc("/api/edit/", editData)
+	mux.HandleFunc("/api/delete/", deleteData)
 
 	corsMux := enableCors(mux)
 
