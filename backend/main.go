@@ -16,12 +16,20 @@ import (
 var jwtKey = []byte("your_secret_key")
 
 type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Username string
+	Password string
+}
+
+type NewData struct {
+	Firstname string `json:"firstname"`
+	Lastname  string `json:"lastname"`
+	Position  string `json:"position"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email"`
 }
 
 type Claims struct {
-	Username string `json:"username"`
+	Username string
 	jwt.StandardClaims
 }
 
@@ -129,35 +137,96 @@ func logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	tokenHeader := r.Header.Get("Authorization")
-	if tokenHeader == "" {
-		http.Error(w, "Missing token", http.StatusUnauthorized)
+	// tokenHeader := r.Header.Get("Authorization")
+	// if tokenHeader == "" {
+	// 	http.Error(w, "Missing token", http.StatusUnauthorized)
+	// 	return
+	// }
+
+	// tokenStr := tokenHeader[len("Bearer "):]
+	// claims := &Claims{}
+	// token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+	// 	return jwtKey, nil
+	// })
+
+	// if err != nil {
+	// 	if err == jwt.ErrSignatureInvalid {
+	// 		http.Error(w, "Invalid token", http.StatusUnauthorized)
+	// 		return
+	// 	}
+	// 	fmt.Print(err)
+	// 	http.Error(w, "Bad request", http.StatusBadRequest)
+	// 	return
+	// }
+
+	// if !token.Valid {
+	// 	http.Error(w, "Invalid token", http.StatusUnauthorized)
+	// 	return
+	// }
+
+	query := "SELECT * FROM data"
+	rows, err := db.Query(query)
+	if err != nil {
+		http.Error(w, "Query execution error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	columns, err := rows.Columns()
+	if err != nil {
+		http.Error(w, "Failed to get columns", http.StatusInternalServerError)
 		return
 	}
 
-	tokenStr := tokenHeader[len("Bearer "):]
-	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-		return jwtKey, nil
-	})
+	var tableRows []map[string]interface{}
+	for rows.Next() {
+		values := make([]interface{}, len(columns))
+		valuePtrs := make([]interface{}, len(columns))
 
-	if err != nil {
-		if err == jwt.ErrSignatureInvalid {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+		for i := range values {
+			valuePtrs[i] = &values[i]
+		}
+
+		err := rows.Scan(valuePtrs...)
+		if err != nil {
+			http.Error(w, "Failed to scan row", http.StatusInternalServerError)
 			return
 		}
-		http.Error(w, "Bad request", http.StatusBadRequest)
-		return
+
+		rowMap := make(map[string]interface{})
+		for i, col := range columns {
+			rowMap[col] = values[i]
+		}
+		tableRows = append(tableRows, rowMap)
 	}
 
-	if !token.Valid {
-		http.Error(w, "Invalid token", http.StatusUnauthorized)
-		return
+	response := map[string]interface{}{
+		"rows": tableRows,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"message": fmt.Sprintf("Hello, %s", claims.Username)})
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
+}
+func addData(w http.ResponseWriter, r *http.Request) {
+	var data NewData
+	err := json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
 
+	_, err = db.Exec("INSERT INTO data (firstname, lastname, position, phone, email) VALUES ($1, $2, $3, $4, $5)", data.Firstname, data.Lastname, data.Position, data.Phone, data.Email)
+	if err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(data)
 }
 
 func main() {
@@ -169,6 +238,7 @@ func main() {
 	mux.HandleFunc("/api/login", login)
 	mux.HandleFunc("/api/home", home)
 	mux.HandleFunc("/api/logout", logout)
+	mux.HandleFunc("/api/add", addData)
 
 	corsMux := enableCors(mux)
 

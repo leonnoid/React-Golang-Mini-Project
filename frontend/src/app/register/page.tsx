@@ -18,11 +18,9 @@ const RegisterForm = () => {
         });
 
         if (response.ok) {
-        // Registration was successful
-        alert("User registered successfully!");
+          alert("User registered successfully!");
         } else {
-        // Handle registration error
-        alert("Failed to register user.");
+          alert("Failed to register user.");
         }
     };
 

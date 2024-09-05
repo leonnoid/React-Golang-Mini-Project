@@ -65,17 +65,17 @@ const LoginForm = () => {
         >
           <Typography variant="h3" component="h2">Login</Typography>
           
-            <TextField id="outlined-basic" label="Username" variant="outlined" onChange={(e) => setUsername(e.target.value)}/>
+          <TextField id="outlined-basic" label="Username" variant="outlined" onChange={(e) => setUsername(e.target.value)}/>
+          
+          <TextField id="outlined-basic" label="Password" variant="outlined" type="password" onChange={(e) => setPassword(e.target.value)}/>
             
-            <TextField id="outlined-basic" label="Password" variant="outlined" type="password" onChange={(e) => setPassword(e.target.value)}/>
-              
-            <Button variant="contained" type="submit">Login</Button>
-            <Button><Link href='/register' style={{textDecoration: 'none'}}>Click here to Register</Link></Button>
-            {error && (  
-              <Typography color="error" sx={{ mt: 2 }}>
-                {error}
-              </Typography>
-            )}
+          <Button variant="contained" type="submit">Login</Button>
+          <Button><Link href='/register' style={{textDecoration: 'none'}}>Click here to Register</Link></Button>
+          {error && (  
+            <Typography color="error" sx={{ mt: 2 }}>
+              {error}
+            </Typography>
+          )}
         </Box>
       </form>
     </Box>
