@@ -480,7 +480,10 @@ const HomePage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {rows.map((row) => (
+                    {(rowsPerPage > 0
+                            ? rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                            : rows
+                        ).map((row) => (
                             <StyledTableRow key={row.id}>
                                 <StyledTableCell>{row.firstname}</StyledTableCell>
                                 <StyledTableCell>{row.lastname}</StyledTableCell>
