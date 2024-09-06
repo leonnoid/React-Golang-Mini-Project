@@ -1,5 +1,5 @@
 'use client'
-import { Box, Button, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Typography, TextField, Modal } from "@mui/material";
+import { Box, Button, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Typography, TextField, Modal, TablePagination } from "@mui/material";
 import { DeleteIcon, EditIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -35,6 +35,8 @@ const HomePage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const hasErrors = Object.keys(errors).length > 0;
+    const [page, setPage] = useState(0);
+    const [rowsPerPage, setRowsPerPage] = useState(5);
 
     useEffect(() => {
         fetchData();
@@ -69,9 +71,11 @@ const HomePage = () => {
         [`&.${tableCellClasses.head}`]: {
             backgroundColor: theme.palette.common.black,
             color: theme.palette.common.white,
+            textAlign: 'center'
         },
         [`&.${tableCellClasses.body}`]: {
             fontSize: 14,
+            textAlign: 'center'
         },
     }));
       
@@ -224,238 +228,184 @@ const HomePage = () => {
             console.error('Error saving data:', error);
         }
     };
+
+    const handleChangePage = (event: React.MouseEvent<HTMLButtonElement> | null, newPage: number) => {
+        setPage(newPage);
+    };
+    
+    const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setRowsPerPage(parseInt(event.target.value, 10));
+        setPage(0);
+    };
+
     return (
         <Box
             sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'space-around',
-            width: '100vw',
-            height: '100vh',
-            borderRadius: 2,
-            bgcolor: 'lightblue',
-            position: 'relative', 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '100vw',
+                height: '100vh',
+                position: 'relative',
             }}
         >
-            
-            <div>
-                <div className="d-flex flex-col-reverse justify-center">
-                    <Typography variant="h3" component="h2" sx={{ margin: 2 }}>Home Page</Typography>
-                    <Button 
-                        variant="contained" 
-                        color="primary" 
-                        onClick={handleOpenModal}
-                    >
-                        <PlusIcon />
-                    </Button>
-                </div>
-                
-                <TableContainer component={Paper} sx={{ position: 'relative' }}>
-                    <Table sx={{ minWidth: 1000 }} aria-label="customized table">
-                        <TableHead>
-                            <TableRow>
-                                {columns.map((column, index) => (
-                                    <StyledTableCell key={index}>{column}</StyledTableCell>
-                                ))}
-                                <StyledTableCell>Actions</StyledTableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {rows.length > 0 ? (
-                                <>
-                                    {rows.map((row, rowIndex) => (
-                                        <StyledTableRow key={rowIndex}>
-                                            <StyledTableCell>{row.firstname}</StyledTableCell>
-                                            <StyledTableCell>{row.lastname}</StyledTableCell>
-                                            <StyledTableCell>{row.position}</StyledTableCell>
-                                            <StyledTableCell>{row.phone}</StyledTableCell>
-                                            <StyledTableCell>{row.email}</StyledTableCell>
-                                            <StyledTableCell>
-                                                <div className="flex justify-end p-2">
-                                                    <IconButton color="primary" onClick={() => handleEdit(row)}>
-                                                        <EditIcon />
-                                                    </IconButton>
-                                                    <IconButton color="primary" onClick={() => handleDelete(row)}>
-                                                        <DeleteIcon />
-                                                    </IconButton>
-                                                </div>
-                                            </StyledTableCell>
-                                        </StyledTableRow>
-                                    ))}
-                                </>
-                            ) : (
-                                <StyledTableRow>
-                                    <StyledTableCell colSpan={columns.length + 1} align="center">
-                                        No data
-                                    </StyledTableCell>
-                                </StyledTableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-            </div>
-            
-            <Button onClick={handleLogout} variant="contained" color="primary" sx={{ marginTop: 2 }}>
+            <Button
+                variant="contained"
+                color="primary"
+                onClick={handleLogout}
+                sx={{ position: 'absolute', top: 16, right: 16 }}
+            >
                 Logout
             </Button>
-
-            <Modal
-                open={isModalOpen}
-                onClose={handleCloseModal}
-                aria-labelledby="add-new-data-modal"
-                aria-describedby="form-to-add-new-data"
-            >
-                <Box sx={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    width: 500,
-                    bgcolor: 'background.paper',
-                    boxShadow: 24,
-                    borderRadius: 2,
-                    p: 4,
-                }}>
-                    <Typography id="add-new-data-modal" variant="h6" component="h2">
-                        Add New Data
+            <Typography variant="h3" component="h2" sx={{ marginBottom: 2, textAlign: 'center' }}>
+                Employee Data
+            </Typography>
+            <Box sx={{ width: '100%', display: 'flex', justifyContent: 'flex-end'}}>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleOpenModal}
+                    sx = {{marginRight: '12.5%' }}
+                >
+                    <PlusIcon />
+                </Button>
+            </Box>
+            <TableContainer component={Paper} sx={{ width: '75%', mt: 2, borderRadius: 4}}>
+                <Table sx={{ minWidth: 1000}} aria-label="customized table">
+                    <TableHead>
+                        <TableRow>
+                            {columns.map((column, index) => (
+                                <StyledTableCell key={index}>{column}</StyledTableCell>
+                            ))}
+                            <StyledTableCell>Actions</StyledTableCell>
+                        </TableRow>
+                    </TableHead>
+                    <TableBody>
+                        {rows.map((row) => (
+                            <StyledTableRow key={row.id}>
+                                <StyledTableCell>{row.firstname}</StyledTableCell>
+                                <StyledTableCell>{row.lastname}</StyledTableCell>
+                                <StyledTableCell>{row.position}</StyledTableCell>
+                                <StyledTableCell>{row.phone}</StyledTableCell>
+                                <StyledTableCell>{row.email}</StyledTableCell>
+                                <StyledTableCell>
+                                    <IconButton
+                                        color="primary"
+                                        onClick={() => handleEdit(row)}
+                                    >
+                                        <EditIcon />
+                                    </IconButton>
+                                    <IconButton
+                                        color="error"
+                                        onClick={() => handleDelete(row)}
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </StyledTableCell>
+                            </StyledTableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={rows.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+            />
+            </TableContainer>
+            <Modal open={isModalOpen} onClose={handleCloseModal}>
+                <Box
+                    sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: 400,
+                        bgcolor: 'background.paper',
+                        border: '2px solid #000',
+                        boxShadow: 24,
+                        p: 4,
+                        borderRadius: 4,
+                    }}
+                >
+                    <Typography variant="h6" component="h2" sx={{ marginBottom: 2 }}>
+                        {formData.id === null ? 'Add New Record' : 'Edit Record'}
                     </Typography>
-                    <Box sx={{ position: 'relative', width: '100%' }}>
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="First Name"
-                            value={formData.firstname}
-                            onChange={(e) => handleInputChange(e, 'firstname')}
-                        />
-                        {errors.firstname && (
-                            <Button 
-                                variant="contained" 
-                                sx={{ 
-                                    backgroundColor: '#d32f2f', 
-                                    color: '#fff', 
-                                    position: 'absolute',
-                                    bottom: -30,
-                                    left: 0,
-                                    width: '100%',
-                                }}
-                            >
-                                {errors.firstname}
-                            </Button>
-                        )}
+                    <TextField
+                        fullWidth
+                        label="First Name"
+                        variant="outlined"
+                        value={formData.firstname}
+                        onChange={(e) => handleInputChange(e, 'firstname')}
+                        error={!!errors.firstname}
+                        helperText={errors.firstname}
+                        sx={{ marginBottom: 2 }}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Last Name"
+                        variant="outlined"
+                        value={formData.lastname}
+                        onChange={(e) => handleInputChange(e, 'lastname')}
+                        error={!!errors.lastname}
+                        helperText={errors.lastname}
+                        sx={{ marginBottom: 2 }}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Position"
+                        variant="outlined"
+                        value={formData.position}
+                        onChange={(e) => handleInputChange(e, 'position')}
+                        error={!!errors.position}
+                        helperText={errors.position}
+                        sx={{ marginBottom: 2 }}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Phone Number"
+                        variant="outlined"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange(e, 'phone')}
+                        error={!!errors.phone}
+                        helperText={errors.phone}
+                        sx={{ marginBottom: 2 }}
+                    />
+                    <TextField
+                        fullWidth
+                        label="Email Address"
+                        variant="outlined"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange(e, 'email')}
+                        error={!!errors.email}
+                        helperText={errors.email}
+                        sx={{ marginBottom: 2 }}
+                    />
+                    <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleSave}
+                            startIcon={<SaveIcon />}
+                            sx={{ marginRight: 2 }}
+                        >
+                            Save
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={handleCloseModal}
+                        >
+                            Cancel
+                        </Button>
                     </Box>
-                    <Box sx={{ position: 'relative', width: '100%' }}>
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Last Name"
-                            value={formData.lastname}
-                            onChange={(e) => handleInputChange(e, 'lastname')}
-                            sx={{ marginTop: hasErrors ? '40px' : '16px' }}
-                        />
-                        {errors.lastname && (
-                            <Button 
-                                variant="contained" 
-                                sx={{ 
-                                    backgroundColor: '#d32f2f', 
-                                    color: '#fff', 
-                                    position: 'absolute',
-                                    bottom: -30,
-                                    left: 0,
-                                    width: '100%',
-                                }}
-                            >
-                                {errors.lastname}
-                            </Button>
-                        )}
-                    </Box>
-                    <Box sx={{ position: 'relative', width: '100%' }}>
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Position"
-                            value={formData.position}
-                            onChange={(e) => handleInputChange(e, 'position')}
-                            sx={{ marginTop: hasErrors ? '40px' : '16px' }}
-                        />
-                        {errors.position && (
-                            <Button 
-                                variant="contained" 
-                                sx={{ 
-                                    backgroundColor: '#d32f2f', 
-                                    color: '#fff', 
-                                    position: 'absolute',
-                                    bottom: -30,
-                                    left: 0,
-                                    width: '100%',
-                                }}
-                            >
-                                {errors.position}
-                            </Button>
-                        )}
-                    </Box>
-                    <Box sx={{ position: 'relative', width: '100%' }}>
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Phone Number"
-                            value={formData.phone}
-                            onChange={(e) => handleInputChange(e, 'phone')}
-                            sx={{ marginTop: hasErrors ? '40px' : '16px' }}
-                        />
-                        {errors.phone && (
-                            <Button 
-                                variant="contained" 
-                                sx={{ 
-                                    backgroundColor: '#d32f2f', 
-                                    color: '#fff', 
-                                    position: 'absolute',
-                                    bottom: -30,
-                                    left: 0,
-                                    width: '100%',
-                                }}
-                            >
-                                {errors.phone}
-                            </Button>
-                        )}
-                    </Box>
-                    <Box sx={{ position: 'relative', width: '100%' }}>
-                        <TextField
-                            fullWidth
-                            margin="normal"
-                            label="Email"
-                            value={formData.email}
-                            onChange={(e) => handleInputChange(e, 'email')}
-                            sx={{ marginTop: hasErrors ? '40px' : '16px' }}
-                        />
-                        {errors.email && (
-                            <Button 
-                                variant="contained" 
-                                sx={{ 
-                                    backgroundColor: '#d32f2f', 
-                                    color: '#fff', 
-                                    position: 'absolute',
-                                    bottom: -30,
-                                    left: 0,
-                                    width: '100%',
-                                }}
-                            >
-                                {errors.email}
-                            </Button>
-                        )}
-                    </Box>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleSave}
-                        sx={{ mt: 5 }}
-                    >
-                        Save
-                    </Button>
                 </Box>
             </Modal>
         </Box>
     );
-};
+}
 
 export default HomePage;

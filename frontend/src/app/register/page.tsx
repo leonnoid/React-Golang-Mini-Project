@@ -71,14 +71,11 @@ const RegisterForm = () => {
     }
   };
 
-  
-
   return (
     <Box
       sx={{
         width: '100vw',
         height: '100vh',
-        bgcolor: '#007FFF', 
         display: 'flex',
         justifyContent: 'center',
         alignItems: 'center',
