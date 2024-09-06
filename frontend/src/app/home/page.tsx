@@ -29,6 +29,7 @@ const HomePage = () => {
         'Phone Number',
         'Email Address',
     ]);
+    const token = localStorage.getItem('token');
     const [rows, setRows] = useState<Data[]>([]);
     const [formData, setFormData] = useState<Data>(defaultValues);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,6 +41,10 @@ const HomePage = () => {
     }, []);
 
     const fetchData = async () => {
+        if (!token) {
+            window.location.href = '/login';
+            return;
+        }
         try {
             const response = await fetch('http://localhost:8080/api/home', {
                 method: 'GET',
@@ -50,8 +55,9 @@ const HomePage = () => {
 
             if (response.ok) {
                 const data = await response.json();
-
                 setRows(data.rows);        
+            } else if(response.status === 401){
+                window.location.href = '/login'; 
             } else {
                 console.error("Failed to fetch data", response.statusText);
             }
@@ -61,13 +67,13 @@ const HomePage = () => {
     };
     const StyledTableCell = styled(TableCell)(({ theme }) => ({
         [`&.${tableCellClasses.head}`]: {
-          backgroundColor: theme.palette.common.black,
-          color: theme.palette.common.white,
+            backgroundColor: theme.palette.common.black,
+            color: theme.palette.common.white,
         },
         [`&.${tableCellClasses.body}`]: {
-          fontSize: 14,
+            fontSize: 14,
         },
-      }));
+    }));
       
     const StyledTableRow = styled(TableRow)(({ theme }) => ({
         '&:nth-of-type(odd)': {
@@ -76,7 +82,7 @@ const HomePage = () => {
         '&:last-child td, &:last-child th': {
           border: 0,
         },
-      }));
+    }));
 
     const handleLogout = async () => {
         try {
@@ -308,6 +314,7 @@ const HomePage = () => {
                     width: 500,
                     bgcolor: 'background.paper',
                     boxShadow: 24,
+                    borderRadius: 2,
                     p: 4,
                 }}>
                     <Typography id="add-new-data-modal" variant="h6" component="h2">

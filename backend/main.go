@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -36,6 +37,9 @@ type Claims struct {
 type cEmail struct {
 	Email        string
 	CurrentEmail string
+}
+type userName struct {
+	Username string
 }
 
 var db *sql.DB
@@ -138,38 +142,38 @@ func login(w http.ResponseWriter, r *http.Request) {
 func logout(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out successfully. Please remove the token from your client."})
+	json.NewEncoder(w).Encode(map[string]string{"message": "Logged out successfully"})
+}
+func jwtMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/register" || r.URL.Path == "/api/login" || r.URL.Path == "/api/check-username" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := strings.Split(authHeader, "Bearer ")[1]
+		claims := &Claims{}
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return jwtKey, nil
+		})
+
+		if err != nil || !token.Valid {
+			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func home(w http.ResponseWriter, r *http.Request) {
-	// tokenHeader := r.Header.Get("Authorization")
-	// if tokenHeader == "" {
-	// 	http.Error(w, "Missing token", http.StatusUnauthorized)
-	// 	return
-	// }
-
-	// tokenStr := tokenHeader[len("Bearer "):]
-	// claims := &Claims{}
-	// token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
-	// 	return jwtKey, nil
-	// })
-
-	// if err != nil {
-	// 	if err == jwt.ErrSignatureInvalid {
-	// 		http.Error(w, "Invalid token", http.StatusUnauthorized)
-	// 		return
-	// 	}
-	// 	http.Error(w, "Bad request", http.StatusBadRequest)
-	// 	return
-	// }
-
-	// if !token.Valid {
-	// 	http.Error(w, "Invalid token", http.StatusUnauthorized)
-	// 	return
-	// }
-
-	query := "SELECT * FROM data"
-	rows, err := db.Query(query)
+	rows, err := db.Query("SELECT * FROM data")
 	if err != nil {
 		http.Error(w, "Query execution error", http.StatusInternalServerError)
 		return
@@ -269,6 +273,31 @@ func checkEmail(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func checkUsername(w http.ResponseWriter, r *http.Request) {
+	var username userName
+	err := json.NewDecoder(r.Body).Decode(&username)
+	if err != nil {
+		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		return
+	}
+
+	var exists bool
+	err = db.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE username = $1)", username.Username).Scan(&exists)
+	if err != nil {
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return
+	}
+
+	response := struct {
+		IsUnique bool `json:"isUnique"`
+	}{
+		IsUnique: !exists,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 func editData(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Path[len("/api/edit/"):]
 	id, err := strconv.Atoi(idStr)
@@ -321,10 +350,12 @@ func main() {
 	mux.HandleFunc("/api/logout", logout)
 	mux.HandleFunc("/api/add", addData)
 	mux.HandleFunc("/api/check-email", checkEmail)
+	mux.HandleFunc("/api/check-username", checkUsername)
 	mux.HandleFunc("/api/edit/", editData)
 	mux.HandleFunc("/api/delete/", deleteData)
 
-	corsMux := enableCors(mux)
+	muxWithMiddleware := jwtMiddleware(mux)
+	corsMux := enableCors(muxWithMiddleware)
 
 	fmt.Println("Starting server on port 8080...")
 	log.Fatal(http.ListenAndServe(":8080", corsMux))
