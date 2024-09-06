@@ -1,5 +1,5 @@
 'use client'
-import { Box, Button, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Typography, TextField, Modal, TablePagination } from "@mui/material";
+import { Box, Button, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Typography, TextField, Modal, TablePagination, Menu, MenuItem } from "@mui/material";
 import { DeleteIcon, EditIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -33,10 +33,28 @@ const HomePage = () => {
     const [rows, setRows] = useState<Data[]>([]);
     const [formData, setFormData] = useState<Data>(defaultValues);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [error, setError] = useState("");
     const [errors, setErrors] = useState<{ [key: string]: string }>({});
     const hasErrors = Object.keys(errors).length > 0;
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
+    const loggedInUserID = localStorage.getItem('userId');
+    
+    const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
+    const [profileFormData, setProfileFormData] = useState<{ username: string, password: string, newpassword: string }>({ username: '', password: '' , newpassword: '' });
+    
+
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
+    const handleMenuClose = () => setAnchorEl(null);
+    
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+    const handleClose = () => {
+        setAnchorEl(null);
+    };
 
     useEffect(() => {
         fetchData();
@@ -89,6 +107,7 @@ const HomePage = () => {
     }));
 
     const handleLogout = async () => {
+        handleClose();
         try {
             const response = await fetch('http://localhost:8080/api/logout', {
                 method: 'POST',
@@ -116,6 +135,12 @@ const HomePage = () => {
         setErrors({});
         setIsModalOpen(false);
     };
+
+    const handleCloseProfileModal = () => {
+        setErrors({})
+        setError("");
+        setIsEditProfileModalOpen(false)
+    }
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>, field: keyof Data) => {
         setFormData({
@@ -238,6 +263,79 @@ const HomePage = () => {
         setPage(0);
     };
 
+    const handleEditProfile = async () => {
+        const userId = loggedInUserID
+        setIsEditProfileModalOpen(true);
+        try {
+            const response = await fetch('http://localhost:8080/api/get-profile/' + userId, {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                },
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setProfileFormData({
+                    username: data.Username,
+                    password: '', 
+                    newpassword: '',
+                });
+                handleMenuClose();
+            } else {
+                console.error("Failed to fetch user profile", response.statusText);
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        setError("");
+        setErrors({})
+        let hasErrors = false;
+        if (!profileFormData.username) {
+            setErrors(prevErrors => ({ ...prevErrors, username: 'Username is required' }));
+            hasErrors = true;
+          }
+        if(!profileFormData.password) {
+            setErrors(prevErrors => ({ ...prevErrors, password: "Please enter your password to save changes." }));
+            hasErrors = true;
+        }
+        if (profileFormData.newpassword && !profileFormData.password) {
+            setErrors(prevErrors => ({ ...prevErrors, password: 'Please enter your current password to set a new password.' }));
+            hasErrors = true;
+        }
+        if (profileFormData.newpassword != '' && profileFormData.newpassword.length < 8) {
+            setErrors(prevErrors => ({ ...prevErrors, newpassword: 'Password must be at least 8 characters long' }));
+            hasErrors = true;
+        }
+
+        if(hasErrors) return
+        const response = await fetch('http://localhost:8080/api/edit-profile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            body: JSON.stringify(profileFormData),
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('token', data.token);
+            setIsEditProfileModalOpen(false);
+            setError("");
+            setErrors({});
+            alert('Data Updated')
+        } else {
+            const errorData = await response.json();
+            setError(errorData.error || 'An unknown error occurred');
+        }
+        
+    };
+
     return (
         <Box
             sx={{
@@ -250,14 +348,114 @@ const HomePage = () => {
                 position: 'relative',
             }}
         >
-            <Button
+             <Button
                 variant="contained"
                 color="primary"
-                onClick={handleLogout}
+                aria-controls={open ? 'basic-menu' : undefined}
+                aria-haspopup="true"
+                aria-expanded={open ? 'true' : undefined}
+                onClick={handleClick}
                 sx={{ position: 'absolute', top: 16, right: 16 }}
             >
-                Logout
+                Dashboard
             </Button>
+            <Menu
+                id="basic-menu"
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleClose}
+                MenuListProps={{
+                'aria-labelledby': 'basic-button',
+                }}
+            >
+                <MenuItem onClick={handleEditProfile}>Profile</MenuItem>
+                <MenuItem onClick={handleLogout}>Logout</MenuItem>
+            </Menu>
+            <Modal
+                open={isEditProfileModalOpen}
+                onClose={handleCloseProfileModal}
+                aria-labelledby="edit-profile-modal-title"
+                aria-describedby="edit-profile-modal-description"
+            >
+                <Box 
+                    sx={{ 
+                        width: 400, 
+                        margin: 'auto', 
+                        marginTop: '20%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'space-evenly', 
+                        padding: 2, 
+                        backgroundColor: 'background.paper', 
+                        borderRadius: 4,
+                        border: '2px solid #000',
+                        boxShadow: 24}}
+                >
+                <Typography variant="h6" id="edit-profile-modal-title">
+                    Edit Profile
+                </Typography>
+                <Box sx={{ position: 'relative', width: '100%' , display: 'flex', flexDirection:"column" , alignItems:"center"}}>
+                <TextField
+                    fullWidth
+                    label="Username"
+                    variant="outlined"
+                    value={profileFormData.username}
+                    onChange={(e) => setProfileFormData({ ...profileFormData, username: e.target.value })}
+                    error={!!errors.username}
+                    helperText={errors.username}
+                    sx={{ marginBottom: 2 }}
+                />
+                <TextField
+                    fullWidth
+                    label="Password"
+                    type="password"
+                    variant="outlined"
+                    value={profileFormData.password}
+                    onChange={(e) => setProfileFormData({ ...profileFormData, password: e.target.value })}
+                    error={!!errors.password}
+                    helperText={errors.password}
+                    sx={{ marginBottom: 2 }}
+                />
+                <TextField
+                    fullWidth
+                    label="NewPassword"
+                    type="password"
+                    variant="outlined"
+                    value={profileFormData.newpassword}
+                    onChange={(e) => setProfileFormData({ ...profileFormData, newpassword: e.target.value })}
+                    error={!!errors.newpassword}
+                    helperText={errors.newpassword}
+                    sx={{ marginBottom: 2 }}
+                />
+                {error && (  
+                    <Typography color="error" sx={{
+                        fontSize: '14px',  
+                        fontWeight: 400,
+                    }}>
+                        {error}
+                    </Typography>
+                    )}
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={handleSaveProfile}
+                            startIcon={<SaveIcon />}
+                            sx={{ marginRight: 2 }}
+                        >
+                            Save
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={handleCloseProfileModal}
+                        >
+                            Cancel
+                        </Button>
+                    </Box>
+                </Box>
+            </Modal>
             <Typography variant="h3" component="h2" sx={{ marginBottom: 2, textAlign: 'center' }}>
                 Employee Data
             </Typography>
@@ -332,9 +530,12 @@ const HomePage = () => {
                         borderRadius: 4,
                     }}
                 >
-                    <Typography variant="h6" component="h2" sx={{ marginBottom: 2 }}>
-                        {formData.id === null ? 'Add New Record' : 'Edit Record'}
-                    </Typography>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', marginTop: 2 }}>
+                        <Typography variant="h6" component="h2" sx={{ marginBottom: 2 }}>
+                            {formData.id === null ? 'Add New Record' : 'Edit Record'}
+                        </Typography>
+                    </Box>
+                    
                     <TextField
                         fullWidth
                         label="First Name"

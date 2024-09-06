@@ -30,7 +30,6 @@ const LoginForm = () => {
     
     if(hasErrors) return
 
-    console.log(1)
     const response = await fetch("http://localhost:8080/api/login", {
       method: "POST",
       headers: {
@@ -41,13 +40,11 @@ const LoginForm = () => {
     if (response.ok) {
       const result = await response.json();
       localStorage.setItem('token', result.token);
+      localStorage.setItem('userId', result.userId);
       window.location.href = '/home'
     } else {
-      if(response.statusText == "Unauthorized") {
-        setError("Wrong Credentials");
-      } else{
-        setError(response.statusText)
-      }
+      const errorData = await response.json();
+      setError(errorData.error || 'An unknown error occurred');
     }
   };
 

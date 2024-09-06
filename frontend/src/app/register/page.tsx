@@ -46,7 +46,7 @@ const RegisterForm = () => {
       setErrors(prevErrors => ({ ...prevErrors, Password: 'Password is required' }));
       hasErrors = true;
     } else if (password.length < 8){
-      setErrors(prevErrors => ({ ...prevErrors, Password: 'Password must be 8 characters long'  }));
+      setErrors(prevErrors => ({ ...prevErrors, Password: 'Password must be above at least characters long'  }));
       hasErrors = true;
     }
 

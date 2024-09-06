@@ -22,12 +22,23 @@ type Credentials struct {
 	Password string
 }
 
+type EditCredentials struct {
+	Username    string
+	Password    string
+	Newpassword string
+}
+
 type Data struct {
 	Firstname string
 	Lastname  string
 	Position  string
 	Phone     string
 	Email     string
+}
+
+type User struct {
+	Id       int
+	Username string
 }
 
 type Claims struct {
@@ -98,26 +109,26 @@ func login(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		http.Error(w, `{"error": "Invalid request payload"}`, http.StatusBadRequest)
 		return
 	}
 
 	var storedPassword string
-
-	err = db.QueryRow("SELECT password FROM users WHERE username=$1", creds.Username).Scan(&storedPassword)
+	var userID int
+	err = db.QueryRow("SELECT id, password FROM users WHERE username=$1", creds.Username).Scan(&userID, &storedPassword)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+			http.Error(w, `{"error": "Invalid username or password"}`, http.StatusUnauthorized)
 			return
 		}
-		http.Error(w, "Server error", http.StatusInternalServerError)
+		http.Error(w, `{"error": "Server error"}`, http.StatusInternalServerError)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(storedPassword), []byte(creds.Password))
 	if err != nil {
 		fmt.Println("Error comparing passwords:", err)
-		http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+		http.Error(w, `{"error": "Invalid username or password"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -128,15 +139,19 @@ func login(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt: expirationTime.Unix(),
 		},
 	}
+
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString(jwtKey)
 	if err != nil {
-		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		http.Error(w, `{"error": "Failed to generate token"}`, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"token":  tokenString,
+		"userId": userID,
+	})
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
@@ -338,6 +353,137 @@ func deleteData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Record deleted successfully"})
 }
+func getProfile(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Path[len("/api/get-profile/"):]
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		http.Error(w, "Invalid ID format", http.StatusBadRequest)
+		return
+	}
+	var user User
+	err = db.QueryRow("SELECT id, username FROM users WHERE id = $1", id).Scan(&user.Id, &user.Username)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "Server error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(user)
+}
+func editProfile(w http.ResponseWriter, r *http.Request) {
+	tokenString := r.Header.Get("Authorization")
+	if tokenString == "" {
+		http.Error(w, `{"error": "Missing token"}`, http.StatusUnauthorized)
+		return
+	}
+	if len(tokenString) > 7 && tokenString[:7] == "Bearer " {
+		tokenString = tokenString[7:]
+	} else {
+		http.Error(w, `{"error": "Invalid token format"}`, http.StatusUnauthorized)
+		return
+	}
+
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return jwtKey, nil
+	})
+	if err != nil {
+		http.Error(w, `{"error": "Invalid token"}`, http.StatusUnauthorized)
+		return
+	}
+
+	claims, ok := token.Claims.(*Claims)
+	if !ok || !token.Valid {
+		http.Error(w, `{"error": "Unauthorized"}`, http.StatusUnauthorized)
+		return
+	}
+	username := claims.Username
+	var currentPassword, currentUsername string
+	var creds EditCredentials
+
+	err = json.NewDecoder(r.Body).Decode(&creds)
+	if err != nil {
+		fmt.Print(err)
+		http.Error(w, `{"error": "Invalid request payload"}`, http.StatusBadRequest)
+		return
+	}
+
+	err = db.QueryRow("SELECT username, password FROM users WHERE username = $1", username).Scan(&currentUsername, &currentPassword)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
+			return
+		}
+		http.Error(w, `{"error": "Server error"}`, http.StatusInternalServerError)
+		return
+	}
+
+	// Verify old password if password change is requested
+	if creds.Newpassword != "" {
+		err = bcrypt.CompareHashAndPassword([]byte(currentPassword), []byte(creds.Password))
+		if err != nil {
+			http.Error(w, `{"error":"Old password is incorrect"}`, http.StatusUnauthorized)
+			return
+		}
+
+		// Hash the new password
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Newpassword), bcrypt.DefaultCost)
+		if err != nil {
+			http.Error(w, `{"error":"Failed to hash password"}`, http.StatusInternalServerError)
+			return
+		}
+
+		// Update the user password in the database
+		_, err = db.Exec("UPDATE users SET password = $1 WHERE username = $2", hashedPassword, username)
+		if err != nil {
+			http.Error(w, `{"error": "Failed to update password"}`, http.StatusInternalServerError)
+			return
+		}
+	}
+
+	newUsername := username
+	if creds.Username != currentUsername {
+		if creds.Password == "" {
+			http.Error(w, `{"error": "Old password is required to change username"}`, http.StatusBadRequest)
+			return
+		}
+		err = bcrypt.CompareHashAndPassword([]byte(currentPassword), []byte(creds.Password))
+		if err != nil {
+			http.Error(w, `{"error": "Old password is incorrect"}`, http.StatusUnauthorized)
+			return
+		}
+
+		// Update the username
+		_, err = db.Exec("UPDATE users SET username = $1 WHERE username = $2", creds.Username, username)
+		if err != nil {
+			http.Error(w, `{"error": "Failed to update username"}`, http.StatusInternalServerError)
+			return
+		}
+
+		// Update `newUsername` after successful username update
+		newUsername = creds.Username
+	}
+
+	expirationTime := time.Now().Add(15 * time.Minute)
+	newClaims := &Claims{
+		Username: newUsername,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: expirationTime.Unix(),
+		},
+	}
+
+	newToken := jwt.NewWithClaims(jwt.SigningMethodHS256, newClaims)
+	newTokenString, err := newToken.SignedString(jwtKey)
+	if err != nil {
+		http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"token": newTokenString})
+}
 
 func main() {
 	initDB()
@@ -353,6 +499,8 @@ func main() {
 	mux.HandleFunc("/api/check-username", checkUsername)
 	mux.HandleFunc("/api/edit/", editData)
 	mux.HandleFunc("/api/delete/", deleteData)
+	mux.HandleFunc("/api/get-profile/", getProfile)
+	mux.HandleFunc("/api/edit-profile", editProfile)
 
 	muxWithMiddleware := jwtMiddleware(mux)
 	corsMux := enableCors(muxWithMiddleware)
