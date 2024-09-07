@@ -164,6 +164,7 @@ const HomePage = () => {
     };
 
     const handleOpenModal = () => {
+        setFormData(defaultValues); 
         setIsModalOpen(true);
     };
 
@@ -254,7 +255,11 @@ const HomePage = () => {
             if (response.ok) {
                 const savedRow = await response.json();
                 if (method === 'POST') {
-                    setRows([...rows, savedRow]);
+                    if (rows === null) {
+                        setRows([savedRow]);
+                    } else {
+                        setRows([...rows, savedRow]);
+                    }
                 } else {
                     setRows(rows.map(row => row.id === formData.id ? savedRow : row));
                 }
