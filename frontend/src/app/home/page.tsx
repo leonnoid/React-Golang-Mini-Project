@@ -38,6 +38,9 @@ const HomePage = () => {
     const hasErrors = Object.keys(errors).length > 0;
     const [page, setPage] = useState(0);
     const [rowsPerPage, setRowsPerPage] = useState(5);
+    const rowCount = rows ? rows.length : 0;
+    const pageCount = Math.ceil(rowCount / rowsPerPage);
+    const adjustedPage = page >= pageCount ? 0 : page;
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
     const loggedInUserID = localStorage.getItem('userId');
@@ -534,7 +537,8 @@ const HomePage = () => {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                    {(rowsPerPage > 0
+                    {(rows && rows.length > 0 ? 
+                        (rowsPerPage > 0
                             ? getSortedRows().slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                             : getSortedRows()
                         ).map((row) => (
@@ -559,7 +563,15 @@ const HomePage = () => {
                                     </IconButton>
                                 </StyledTableCell>
                             </StyledTableRow>
-                        ))}
+                        ))
+                        : (
+                            <TableRow>
+                                <TableCell colSpan={columns.length + 1} align="center">
+                                    No Data Available
+                                </TableCell>
+                            </TableRow>
+                        )
+                    )}
                     </TableBody>
                 </Table>
                 </Box>
@@ -567,9 +579,9 @@ const HomePage = () => {
                     <TablePagination
                     rowsPerPageOptions={[5, 10, 25]}
                     component="div"
-                    count={rows.length}
+                    count={rowCount}
                     rowsPerPage={rowsPerPage}
-                    page={page}
+                    page={adjustedPage}
                     onPageChange={handleChangePage}
                     onRowsPerPageChange={handleChangeRowsPerPage}
                     />
