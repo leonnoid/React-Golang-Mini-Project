@@ -1,5 +1,5 @@
 'use client'
-import { Box, Button, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Typography, TextField, Modal, TablePagination, Menu, MenuItem } from "@mui/material";
+import { Box, Button, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Typography, TextField, Modal, TablePagination, Menu, MenuItem, TableSortLabel } from "@mui/material";
 import { DeleteIcon, EditIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -21,16 +21,14 @@ const defaultValues: Data = {
     email: '',
 }
 
-
-
 const HomePage = () => {
-    const [columns, setColumns] = useState<string[]>([
-        'First Name',
-        'Last Name',
-        'Position',
-        'Phone Number',
-        'Email Address',
-    ]);
+    const columns = [
+        { id: 'firstname', label: 'First Name' },
+        { id: 'lastname', label: 'Last Name' },
+        { id: 'position', label: 'Position' },
+        { id: 'phone', label: 'Phone' },
+        { id: 'email', label: 'Email' }
+      ];
     const token = localStorage.getItem('token');
     const [rows, setRows] = useState<Data[]>([]);
     const [formData, setFormData] = useState<Data>(defaultValues);
@@ -43,10 +41,12 @@ const HomePage = () => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const open = Boolean(anchorEl);
     const loggedInUserID = localStorage.getItem('userId');
-    
+    const [order, setOrder] = useState<'asc' | 'desc'>('asc');
+    const [orderBy, setOrderBy] = useState<string>('firstname');
     const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
     const [profileFormData, setProfileFormData] = useState<{ username: string, password: string, newpassword: string }>({ username: '', password: '' , newpassword: '' });
     
+
 
     const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
     const handleMenuClose = () => setAnchorEl(null);
@@ -59,15 +59,36 @@ const HomePage = () => {
     };
     const formatPhoneNumber = (input: string) => {
         if (input === undefined || input === null || input.length === 0) {
-          return '';
+            return '';
         }
-        
-          const part1 = input.slice(0, 3);
-          const part2 = input.slice(3, 6); 
-          const part3 = input.slice(6);
-      
-          return `(${part1}) ${part2}-${part3}`;
+
+        const part1 = input.slice(0, 3);
+        const part2 = input.slice(3, 6); 
+        const part3 = input.slice(6);
+
+        return `(${part1}) ${part2}-${part3}`;
+    };
+
+    const handleRequestSort = (property: string) => {
+        const isAscending = orderBy === property && order === 'asc';
+        setOrder(isAscending ? 'desc' : 'asc');
+        setOrderBy(property);
       };
+      
+    const getSortedRows = () => {
+        return rows.slice().sort((a, b) => {
+            const valueA = a[orderBy as keyof Data] ?? ''; 
+            const valueB = b[orderBy as keyof Data] ?? '';
+        
+            if (valueA < valueB) {
+            return order === 'asc' ? -1 : 1;
+            }
+            if (valueA > valueB) {
+            return order === 'asc' ? 1 : -1;
+            }
+            return 0;
+        });
+    };
 
     useEffect(() => {
         fetchData();
@@ -497,16 +518,25 @@ const HomePage = () => {
                 <Table sx={{ minWidth: 1000}} aria-label="customized table">
                     <TableHead>
                         <TableRow>
-                            {columns.map((column, index) => (
-                                <StyledTableCell key={index} sx={{ position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 1 }}>{column}</StyledTableCell>
+                            {columns.map((column) => (
+                                <StyledTableCell
+                                    key={column.id}
+                                    sx={{ position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 1, cursor: 'pointer' }}
+                                    onClick={() => handleRequestSort(column.id)}
+                                >
+                                    {column.label}
+                                    {orderBy === column.id ? (
+                                        <span>{order === 'asc' ? '▲' : '▼'}</span>
+                                    ) : null}
+                                </StyledTableCell>
                             ))}
                             <StyledTableCell sx={{ position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 1 }}>Actions</StyledTableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                     {(rowsPerPage > 0
-                            ? rows.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                            : rows
+                            ? getSortedRows().slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                            : getSortedRows()
                         ).map((row) => (
                             <StyledTableRow key={row.id}>
                                 <StyledTableCell>{row.firstname}</StyledTableCell>
