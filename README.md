@@ -9,8 +9,7 @@ Username: postgres<br />
 Password: {your super user password}<br />
 you can put the server name whatever you like<br />
 create a new DB on the new server with dbname go_auth_app
-**Queries**
-
+**Queries on go_auth_app DB**
 CREATE USER go_user WITH PASSWORD '12345678';
 GRANT ALL PRIVILEGES ON DATABASE go_auth_app TO go_user;
 CREATE TABLE users (
@@ -25,13 +24,16 @@ CREATE TABLE data (
     lastname VARCHAR(255) NOT NULL,
     position VARCHAR(255) NOT NULL,
     phone VARCHAR(10) NOT NULL,
-    email VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL
 );
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE users TO go_user;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE data TO go_user;
 GRANT USAGE, SELECT ON SEQUENCE data_id_seq TO go_user;
 GRANT USAGE, SELECT ON SEQUENCE users_id_seq TO go_user;
-
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE users TO go_user;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE data TO go_user;
+GRANT USAGE, SELECT ON SEQUENCE data_id_seq TO go_user;
+GRANT USAGE, SELECT ON SEQUENCE users_id_seq TO go_user;
 
 
 **Backend Setup**<br />
