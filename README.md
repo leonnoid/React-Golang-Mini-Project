@@ -8,7 +8,8 @@ hostname/address: localhost<br />
 Username: postgres<br />
 Password: {your super user password}<br />
 you can put the server name whatever you like<br />
-create a new DB on the new server with dbname go_auth_app
+create a new DB on the new server with dbname go_auth_app<br />
+
 **Queries on go_auth_app DB**
 CREATE USER go_user WITH PASSWORD '12345678';
 GRANT ALL PRIVILEGES ON DATABASE go_auth_app TO go_user;
