@@ -21,6 +21,8 @@ const defaultValues: Data = {
     email: '',
 }
 
+
+
 const HomePage = () => {
     const [columns, setColumns] = useState<string[]>([
         'First Name',
@@ -55,6 +57,17 @@ const HomePage = () => {
     const handleClose = () => {
         setAnchorEl(null);
     };
+    const formatPhoneNumber = (input: string) => {
+        if (input === undefined || input === null || input.length === 0) {
+          return '';
+        }
+        
+          const part1 = input.slice(0, 3);
+          const part2 = input.slice(3, 6); 
+          const part3 = input.slice(6);
+      
+          return `(${part1}) ${part2}-${part3}`;
+      };
 
     useEffect(() => {
         fetchData();
@@ -162,8 +175,8 @@ const HomePage = () => {
         if (!formData.phone) newErrors.phone = "Phone number is required";
         if (!formData.email) newErrors.email = "Email is required";
 
-        if (!/^\d{1,10}$/.test(formData.phone)) {
-            newErrors.phone = "Phone number must be numeric and up to 10 digits";
+        if (!/^\d{10}$/.test(formData.phone)) {
+            newErrors.phone = "Phone number must be numeric and excatly 10 digits";
         }
 
         if (!newErrors.email && !/\.(com|id)$/.test(formData.email)) {
@@ -469,14 +482,25 @@ const HomePage = () => {
                     <PlusIcon />
                 </Button>
             </Box>
-            <TableContainer component={Paper} sx={{ width: '75%', mt: 2, borderRadius: 4}}>
+            <TableContainer component={Paper} 
+                sx={{ 
+                    width: '75%', 
+                    mt: 2, 
+                    mb: 4, 
+                    borderRadius: 4, 
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'auto',
+                    '::-webkit-scrollbar': { display: 'none' }
+                    }}>
+                <Box sx={{ flex: 1, overflowY: 'auto' }}>
                 <Table sx={{ minWidth: 1000}} aria-label="customized table">
                     <TableHead>
                         <TableRow>
                             {columns.map((column, index) => (
-                                <StyledTableCell key={index}>{column}</StyledTableCell>
+                                <StyledTableCell key={index} sx={{ position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 1 }}>{column}</StyledTableCell>
                             ))}
-                            <StyledTableCell>Actions</StyledTableCell>
+                            <StyledTableCell sx={{ position: 'sticky', top: 0, backgroundColor: 'white', zIndex: 1 }}>Actions</StyledTableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
@@ -488,7 +512,7 @@ const HomePage = () => {
                                 <StyledTableCell>{row.firstname}</StyledTableCell>
                                 <StyledTableCell>{row.lastname}</StyledTableCell>
                                 <StyledTableCell>{row.position}</StyledTableCell>
-                                <StyledTableCell>{row.phone}</StyledTableCell>
+                                <StyledTableCell>{formatPhoneNumber(row.phone)}</StyledTableCell>
                                 <StyledTableCell>{row.email}</StyledTableCell>
                                 <StyledTableCell>
                                     <IconButton
@@ -508,15 +532,18 @@ const HomePage = () => {
                         ))}
                     </TableBody>
                 </Table>
-            <TablePagination
-                rowsPerPageOptions={[5, 10, 25]}
-                component="div"
-                count={rows.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-            />
+                </Box>
+                <Box sx={{ p: 2 }}>
+                    <TablePagination
+                    rowsPerPageOptions={[5, 10, 25]}
+                    component="div"
+                    count={rows.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={handleChangePage}
+                    onRowsPerPageChange={handleChangeRowsPerPage}
+                    />
+                </Box>
             </TableContainer>
             <Modal open={isModalOpen} onClose={handleCloseModal}>
                 <Box

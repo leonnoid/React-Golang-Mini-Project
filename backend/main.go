@@ -420,7 +420,6 @@ func editProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify old password if password change is requested
 	if creds.Newpassword != "" {
 		err = bcrypt.CompareHashAndPassword([]byte(currentPassword), []byte(creds.Password))
 		if err != nil {
@@ -428,14 +427,12 @@ func editProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Hash the new password
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Newpassword), bcrypt.DefaultCost)
 		if err != nil {
 			http.Error(w, `{"error":"Failed to hash password"}`, http.StatusInternalServerError)
 			return
 		}
 
-		// Update the user password in the database
 		_, err = db.Exec("UPDATE users SET password = $1 WHERE username = $2", hashedPassword, username)
 		if err != nil {
 			http.Error(w, `{"error": "Failed to update password"}`, http.StatusInternalServerError)
@@ -455,14 +452,12 @@ func editProfile(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Update the username
 		_, err = db.Exec("UPDATE users SET username = $1 WHERE username = $2", creds.Username, username)
 		if err != nil {
 			http.Error(w, `{"error": "Failed to update username"}`, http.StatusInternalServerError)
 			return
 		}
 
-		// Update `newUsername` after successful username update
 		newUsername = creds.Username
 	}
 
