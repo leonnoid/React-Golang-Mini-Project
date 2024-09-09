@@ -368,10 +368,10 @@ const HomePage = () => {
         } else{
             if(profileFormData.username !== currentUsername){
                 const isUsernameUnique = await validateUsername(profileFormData.username);
-            if(!isUsernameUnique) {
-                setErrors( prevErrors => ({ ...prevErrors, username: 'Username already taken' }));
-                hasErrors = true;
-            }
+                if(!isUsernameUnique) {
+                    setErrors( prevErrors => ({ ...prevErrors, username: 'Username already taken' }));
+                    hasErrors = true;
+                }
             }
         }
         if(!profileFormData.password) {
