@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -55,21 +56,21 @@ type userName struct {
 	Username string
 }
 
-var db *sql.DB
+// var db *sql.DB
 
-func initDB() {
-	var err error
-	connStr := "user=go_user password=12345678 dbname=go_auth_app sslmode=disable"
-	db, err = sql.Open("postgres", connStr)
-	if err != nil {
-		log.Fatal(err)
-	}
+// func initDB() {
+// 	var err error
+// 	connStr := "user=go_user password=12345678 dbname=go_auth_app sslmode=disable"
+// 	db, err = sql.Open("postgres", connStr)
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
 
-	err = db.Ping()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
+// 	err = db.Ping()
+// 	if err != nil {
+// 		log.Fatal(err)
+// 	}
+// }
 
 func enableCors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -483,7 +484,18 @@ func editProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	initDB()
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbName := os.Getenv("DB_NAME")
+	dbSSLMode := os.Getenv("DB_SSL_MODE")
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s sslmode=%s",
+		dbUser, dbPassword, dbName, dbSSLMode)
+	database.initDB(connStr)
 	defer db.Close()
 
 	mux := http.NewServeMux()
