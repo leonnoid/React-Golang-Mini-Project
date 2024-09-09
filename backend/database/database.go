@@ -1,4 +1,4 @@
-package db
+package database
 
 import (
 	"database/sql"
@@ -9,7 +9,7 @@ import (
 
 var db *sql.DB
 
-func initDB(connStr string) {
+func ConnectDB(connStr string) {
 	var err error
 	db, err = sql.Open("postgres", connStr)
 	if err != nil {

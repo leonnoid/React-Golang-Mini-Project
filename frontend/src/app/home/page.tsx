@@ -103,7 +103,7 @@ const HomePage = () => {
             return;
         }
         try {
-            const response = await fetch('http://localhost:8080/api/home', {
+            const response = await fetch('http://localhost:8080/api/get', {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -356,7 +356,7 @@ const HomePage = () => {
 
         if(hasErrors) return
         const response = await fetch('http://localhost:8080/api/edit-profile', {
-            method: 'POST',
+            method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${localStorage.getItem('token')}`,
