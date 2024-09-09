@@ -333,6 +333,30 @@ const HomePage = () => {
         }
     };
 
+    const validateUsername = async (username: string) => {
+        const response = await fetch('http://localhost:8080/api/check-username', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({ username }),
+        });
+    
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.isUnique) {
+            setErrors({ Username: 'Username already taken' });
+            return false;
+          }
+          setErrors({});
+          return true;
+        } else {
+          setErrors({ Username: "Failed to check username uniqueness" });
+          return false;
+        }
+      };
+
     const handleSaveProfile = async () => {
         setError("");
         setErrors({})
@@ -340,7 +364,13 @@ const HomePage = () => {
         if (!profileFormData.username) {
             setErrors(prevErrors => ({ ...prevErrors, username: 'Username is required' }));
             hasErrors = true;
-          }
+        } else{
+            const isUsernameUnique = await validateUsername(profileFormData.username);
+            if(!isUsernameUnique) {
+                setErrors( prevErrors => ({ ...prevErrors, username: 'Username already taken' }));
+                hasErrors = true;
+            }
+        }
         if(!profileFormData.password) {
             setErrors(prevErrors => ({ ...prevErrors, password: "Please enter your password to save changes." }));
             hasErrors = true;
