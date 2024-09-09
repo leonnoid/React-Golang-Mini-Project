@@ -361,14 +361,17 @@ const HomePage = () => {
         setError("");
         setErrors({})
         let hasErrors = false;
+        const currentUsername = profileFormData.username 
         if (!profileFormData.username) {
             setErrors(prevErrors => ({ ...prevErrors, username: 'Username is required' }));
             hasErrors = true;
         } else{
-            const isUsernameUnique = await validateUsername(profileFormData.username);
+            if(profileFormData.username !== currentUsername){
+                const isUsernameUnique = await validateUsername(profileFormData.username);
             if(!isUsernameUnique) {
                 setErrors( prevErrors => ({ ...prevErrors, username: 'Username already taken' }));
                 hasErrors = true;
+            }
             }
         }
         if(!profileFormData.password) {
