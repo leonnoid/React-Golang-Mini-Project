@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"go-auth-app/server"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -500,6 +502,10 @@ func main() {
 	muxWithMiddleware := jwtMiddleware(mux)
 	corsMux := enableCors(muxWithMiddleware)
 
-	fmt.Println("Starting server on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", corsMux))
+	port := os.Getenv("SERVER_PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	server.StartServer(port, corsMux)
 }
