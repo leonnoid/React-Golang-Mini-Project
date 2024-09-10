@@ -155,6 +155,7 @@ const HomePage = () => {
             });
             
             localStorage.removeItem('token');
+            localStorage.removeItem('userId');
             if(response.ok){
                 window.location.href = '/login'
             }
