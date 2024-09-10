@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { Box, Button, TextField, Typography } from "@mui/material";
 import Link from "next/link";
+import apiService from "@/components/ui/apiService/apiService";
 
 const RegisterForm = () => {
   const [username, setUsername] = useState("");
@@ -9,27 +10,14 @@ const RegisterForm = () => {
   const [errors, setErrors] = useState<{ Username?: string; Password?: string }>({});
 
   const validateUsername = async (username: string) => {
-    const response = await fetch('http://localhost:8080/api/check-username', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ username }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (!data.isUnique) {
-        setErrors({ Username: 'Username already taken' });
-        return false;
-      }
-      setErrors({});
-      return true;
-    } else {
-      setErrors({ Username: "Failed to check username uniqueness" });
+    const response = await apiService.post('/api/check-username',{ username });
+    if (!response.isUnique) {
+      setErrors({ Username: 'Username already taken' });
       return false;
     }
+    setErrors({});
+    return true;
+    
   };
 
   const handleRegister = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -55,20 +43,10 @@ const RegisterForm = () => {
     const isUsernameValid = await validateUsername(username);
     if (!isUsernameValid) return;
 
-    const response = await fetch("http://localhost:8080/api/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    });
+    await apiService.post("/api/register", {username, password}); 
 
-    if (response.ok) {
-      alert("User registered successfully!");
-      window.location.href = '/login'
-    } else {
-      alert("Failed to register user.");
-    }
+    alert("User registered successfully!");
+    window.location.href = '/login'
   };
 
   return (

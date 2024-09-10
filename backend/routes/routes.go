@@ -28,7 +28,7 @@ func InitializeRoutes() *mux.Router {
 	router.HandleFunc("/api/add", handlers.AddData).Methods("POST")
 	router.HandleFunc("/api/edit/{id}", handlers.EditData).Methods("PUT")
 	router.HandleFunc("/api/check-email", handlers.CheckEmail).Methods("POST")
-	router.HandleFunc("/api/delete", handlers.DeleteData).Methods("DELETE")
+	router.HandleFunc("/api/delete/{id}", handlers.DeleteData).Methods("DELETE")
 	router.HandleFunc("/api/get-profile/{id}", handlers.GetProfile).Methods("GET")
 	router.HandleFunc("/api/check-username", handlers.CheckUsername).Methods("POST")
 

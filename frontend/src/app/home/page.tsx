@@ -1,4 +1,5 @@
 'use client'
+import apiService from "@/components/ui/apiService/apiService";
 import { Box, Button, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Typography, TextField, Modal, TablePagination, Menu, MenuItem, TableSortLabel } from "@mui/material";
 import { DeleteIcon, EditIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -29,6 +30,7 @@ const HomePage = () => {
         { id: 'phone', label: 'Phone' },
         { id: 'email', label: 'Email' }
     ];
+    const [currentUsername, setCurrentUsername] = useState("");
     const [token, setToken] = useState<string | null>();
     const [userId, setUserId] =useState<string | null>();
     const [rows, setRows] = useState<Data[]>([]);
@@ -101,23 +103,8 @@ const HomePage = () => {
     }, []);
 
     const fetchData = async () => {
-        try {
-            const response = await fetch('http://localhost:8080/api/get', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setRows(data.rows);        
-            } else {
-                console.error("Failed to fetch data", response.statusText);
-            }
-        } catch (error) {
-            console.error('Error fetching data:', error);
-        }
+        const response = await apiService.get('/api/get');
+        setRows(response.rows);
     };
     const StyledTableCell = styled(TableCell)(({ theme }) => ({
         [`&.${tableCellClasses.head}`]: {
@@ -142,23 +129,13 @@ const HomePage = () => {
 
     const handleLogout = async () => {
         handleClose();
-        try {
-            const response = await fetch('http://localhost:8080/api/logout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-            });
+        await apiService.post('/api/logout', null);
+        
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        window.location.href = '/login'
             
-            localStorage.removeItem('token');
-            localStorage.removeItem('userId');
-            if(response.ok){
-                window.location.href = '/login'
-            }
-        } catch (error) {
-            console.error('Logout failed', error);
-        }
+        
     };
 
     const handleOpenModal = () => {
@@ -207,26 +184,12 @@ const HomePage = () => {
         }
 
         if (!newErrors.email) {
-            try {
-                const response = await fetch('http://localhost:8080/api/check-email', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    },
-                    body: JSON.stringify({ email: formData.email, currentEmail: formData.id ? rows.find(row => row.id === formData.id)?.email : '' }),
-                });
-    
-                if (response.ok) {
-                    const data = await response.json();
-                    if (!data.isUnique) {
-                        newErrors.email = "Email must be unique";
-                    }
-                } else {
-                    console.error("Failed to check email uniqueness", response.statusText);
+            const response = await apiService.post('/api/check-email', { email: formData.email, currentEmail: formData.id ? rows.find(row => row.id === formData.id)?.email : '' })
+
+            if (response.ok) {
+                if (!response.isUnique) {
+                    newErrors.email = "Email must be unique";
                 }
-            } catch (error) {
-                console.error('Error checking email uniqueness:', error);
             }
         }
 
@@ -238,60 +201,34 @@ const HomePage = () => {
         const isValid = await validateForm();
         if (!isValid) return; 
 
-        try {
-            const url = formData.id === null ? 'http://localhost:8080/api/add' : `http://localhost:8080/api/edit/${formData.id}`;
-            const method  = formData.id === null ? 'POST' : 'PUT';
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: JSON.stringify(formData),
-            });
 
-            if (response.ok) {
-                const savedRow = await response.json();
-                if (method === 'POST') {
-                    if (rows === null) {
-                        setRows([savedRow]);
-                    } else {
-                        setRows([...rows, savedRow]);
-                    }
-                } else {
-                    setRows(rows.map(row => row.id === formData.id ? savedRow : row));
-                }
-                handleCloseModal();
-                fetchData();
-            } else {
-                console.error("Failed to save data", response.statusText);
+            let response;
+            let method;
+            if(formData.id === null){
+                response = await apiService.post('/api/add', formData)
+                method = 'POST';
+            } else{
+                response = await apiService.put('/api/edit/' + formData.id, formData)
+                method = 'PUT';
             }
-        } catch (error) {
-            console.error('Error saving data:', error);
-        }
+            if (method === 'POST') {
+                if (rows === null) {
+                    setRows([response]);
+                } else {
+                    setRows([...rows, response]);
+                }
+            } else {
+                setRows(rows.map(row => row.id === formData.id ? response : row));
+            }
+            handleCloseModal();
+            fetchData();
     };
 
     const handleDelete = async (row: Data) => {
         if (!window.confirm('Are you sure you want to delete this record?')) return;
             setFormData(row);
-        try {
-            const response = await fetch(`http://localhost:8080/api/delete/${row.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-                body: JSON.stringify(formData),
-            });
-
-            if (response.ok) {
-                fetchData();
-            } else {
-                console.error("Failed to delete data", response.statusText);
-            }
-        } catch (error) {
-            console.error('Error saving data:', error);
-        }
+        await apiService.delete(`/api/delete/` + row.id)
+        fetchData();
     };
 
     const handleChangePage = (event: React.MouseEvent<HTMLButtonElement> | null, newPage: number) => {
@@ -305,65 +242,40 @@ const HomePage = () => {
 
     const handleEditProfile = async () => {
         setIsEditProfileModalOpen(true);
-        try {
-            const response = await fetch('http://localhost:8080/api/get-profile/' + userId, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                },
-            });
+        
+        const response = await apiService.get('/api/get-profile/' + userId)
 
-            if (response.ok) {
-                const data = await response.json();
-                setProfileFormData({
-                    username: data.Username,
-                    password: '', 
-                    newpassword: '',
-                });
-                handleMenuClose();
-            } else {
-                console.error("Failed to fetch user profile", response.statusText);
-            }
-        } catch (error) {
-            console.error('Error updating profile:', error);
-        }
+        setProfileFormData({
+            username: response.Username,
+            password: '', 
+            newpassword: '',
+        });
+        handleMenuClose();
+        
     };
 
     const validateUsername = async (username: string) => {
-        const response = await fetch('http://localhost:8080/api/check-username', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({ username }),
-        });
+        const response = await apiService.post('/api/check-username', {username});
     
-        if (response.ok) {
-          const data = await response.json();
-          if (!data.isUnique) {
+        if (!response.isUnique) {
             setErrors({ Username: 'Username already taken' });
             return false;
-          }
-          setErrors({});
-          return true;
-        } else {
-          setErrors({ Username: "Failed to check username uniqueness" });
-          return false;
         }
+        setErrors({});
+        return true;
+        
       };
 
     const handleSaveProfile = async () => {
         setError("");
         setErrors({})
         let hasErrors = false;
-        const currentUsername = profileFormData.username 
+        setCurrentUsername(profileFormData.username) 
         if (!profileFormData.username) {
             setErrors(prevErrors => ({ ...prevErrors, username: 'Username is required' }));
             hasErrors = true;
         } else{
-            if(profileFormData.username !== currentUsername){
+            if(profileFormData.username != currentUsername){
                 const isUsernameUnique = await validateUsername(profileFormData.username);
                 if(!isUsernameUnique) {
                     setErrors( prevErrors => ({ ...prevErrors, username: 'Username already taken' }));
@@ -385,27 +297,13 @@ const HomePage = () => {
         }
 
         if(hasErrors) return
-        const response = await fetch('http://localhost:8080/api/edit-profile', {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            },
-            body: JSON.stringify(profileFormData),
-        });
+        const response = await apiService.put('/api/edit-profile', profileFormData);
 
-        if (response.ok) {
-            const data = await response.json();
-            localStorage.setItem('token', data.token);
-            setIsEditProfileModalOpen(false);
-            setError("");
-            setErrors({});
-            alert('Data Updated')
-        } else {
-            const errorData = await response.json();
-            setError(errorData.error || 'An unknown error occurred');
-        }
-        
+        localStorage.setItem('token', response.token);
+        setIsEditProfileModalOpen(false);
+        setError("");
+        setErrors({});
+        alert('Data Updated')
     };
 
     return (

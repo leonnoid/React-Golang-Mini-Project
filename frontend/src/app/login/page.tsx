@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { redirect } from 'next/navigation';
 import { Box, Button, TextField, Typography } from "@mui/material";
 import Link from "next/link";
+import apiService from "@/components/ui/apiService/apiService";
 
 const LoginForm = () => {
   const [username, setUsername] = useState("");
@@ -30,22 +31,10 @@ const LoginForm = () => {
     
     if(hasErrors) return
 
-    const response = await fetch("http://localhost:8080/api/login", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username, password }),
-    });
-    if (response.ok) {
-      const result = await response.json();
-      localStorage.setItem('token', result.token);
-      localStorage.setItem('userId', result.userId);
-      window.location.href = '/home'
-    } else {
-      const errorData = await response.json();
-      setError(errorData.error || 'An unknown error occurred');
-    }
+    const response = await apiService.post("/api/login", { username, password });
+    localStorage.setItem('token', response.token);
+    localStorage.setItem('userId', response.userId);
+    window.location.href = '/home'
   };
 
   return (
