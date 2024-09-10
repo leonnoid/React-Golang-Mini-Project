@@ -10,7 +10,7 @@ export const metadata = {
   }) {
     return (
         <html lang="en">
-        <body style={{ margin: 0, padding: 0, minHeight: '100vh', backgroundColor: '#007FFF' }}>
+        <body >
           {children}
         </body>
       </html>

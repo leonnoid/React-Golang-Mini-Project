@@ -28,8 +28,9 @@ const HomePage = () => {
         { id: 'position', label: 'Position' },
         { id: 'phone', label: 'Phone' },
         { id: 'email', label: 'Email' }
-      ];
-    const token = localStorage.getItem('token');
+    ];
+    const [token, setToken] = useState<string | null>();
+    const [userId, setUserId] =useState<string | null>();
     const [rows, setRows] = useState<Data[]>([]);
     const [formData, setFormData] = useState<Data>(defaultValues);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,17 +42,13 @@ const HomePage = () => {
     const rowCount = rows ? rows.length : 0;
     const pageCount = Math.ceil(rowCount / rowsPerPage);
     const adjustedPage = page >= pageCount ? 0 : page;
-    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+    const [anchorEl, setAnchorEl] = useState<null | HTMLButtonElement>(null);
     const open = Boolean(anchorEl);
-    const loggedInUserID = localStorage.getItem('userId');
     const [order, setOrder] = useState<'asc' | 'desc'>('asc');
     const [orderBy, setOrderBy] = useState<string>('firstname');
     const [isEditProfileModalOpen, setIsEditProfileModalOpen] = useState(false);
     const [profileFormData, setProfileFormData] = useState<{ username: string, password: string, newpassword: string }>({ username: '', password: '' , newpassword: '' });
     
-
-
-    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
     const handleMenuClose = () => setAnchorEl(null);
     
     const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -92,16 +89,18 @@ const HomePage = () => {
             return 0;
         });
     };
-
     useEffect(() => {
-        fetchData();
+        const token = localStorage.getItem('token');
+        const loggedInUserID = localStorage.getItem('userId');
+        setUserId(loggedInUserID);
+        if(token !== null && token !== undefined){
+            fetchData();
+        } else{
+            window.location.href = '/login'
+        }
     }, []);
 
     const fetchData = async () => {
-        if (!token) {
-            window.location.href = '/login';
-            return;
-        }
         try {
             const response = await fetch('http://localhost:8080/api/get', {
                 method: 'GET',
@@ -113,8 +112,6 @@ const HomePage = () => {
             if (response.ok) {
                 const data = await response.json();
                 setRows(data.rows);        
-            } else if(response.status === 401){
-                window.location.href = '/login'; 
             } else {
                 console.error("Failed to fetch data", response.statusText);
             }
@@ -307,7 +304,6 @@ const HomePage = () => {
     };
 
     const handleEditProfile = async () => {
-        const userId = loggedInUserID
         setIsEditProfileModalOpen(true);
         try {
             const response = await fetch('http://localhost:8080/api/get-profile/' + userId, {
