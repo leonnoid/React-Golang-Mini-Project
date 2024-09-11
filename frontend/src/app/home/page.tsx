@@ -1,5 +1,5 @@
 'use client'
-import apiService from "@/components/ui/apiService/apiService";
+import apiService from "@/components/apiService/apiService";
 import { Box, Button, IconButton, Paper, styled, Table, TableBody, TableCell, tableCellClasses, TableContainer, TableHead, TableRow, Typography, TextField, Modal, TablePagination, Menu, MenuItem, TableSortLabel } from "@mui/material";
 import { DeleteIcon, EditIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useEffect, useState } from "react";

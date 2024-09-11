@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { redirect } from 'next/navigation';
 import { Box, Button, TextField, Typography } from "@mui/material";
 import Link from "next/link";
-import apiService from "@/components/ui/apiService/apiService";
+import apiService from "@/components/apiService/apiService";
 
 const LoginForm = () => {
   const [username, setUsername] = useState("");
